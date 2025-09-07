@@ -2,7 +2,7 @@
 
 Turn any NFC tag into a “tap to pay” landing flow that starts on an ESP32 and ends on a free HTTPS subdomain.  
 **Backend:** Next.js (App Router) on Netlify, Prisma ORM, Postgres on Neon.  
-**Firmware:** ESP32 + PN532 (SPI).  
+**Firmware:** ESP32 + PN532 (SPI) with **SoftAP Wi‑Fi provisioning + captive portal** and **factory reset**.  
 **Admin UI:** Create/mark sessions, manage devices, per-store auto-incremented terminals.
 
 ---
@@ -22,7 +22,9 @@ Turn any NFC tag into a “tap to pay” landing flow that starts on an ESP32 an
   - Login with shared admin key
   - List/create/mark sessions
   - Devices CRUD (deviceId / storeCode / terminal / amount / currency)
-- ESP32 sample sketch: writes checkout URL to the NFC tag and **shows payment status** on LED & buzzer (pending/paid/error).
+- **ESP32 SoftAP provisioning**: starts a Wi‑Fi setup portal if no saved Wi‑Fi.
+- **Factory reset**: clear Wi‑Fi via button (hold on boot) or serial command.
+- ESP32 sample sketch writes checkout URL to NFC tag and **shows payment status** on LED & buzzer (pending/paid/error).
 - OpenAPI spec + Postman collection included below.
 
 ---
@@ -116,6 +118,34 @@ TERMINAL_PAD=4
 6) **Devices**  
    - `/admin/devices` to view/add devices.  
    - Or let devices **auto-enroll** by calling `/api/v1/bootstrap` once; they’ll appear with status `new`.
+
+---
+
+## 📶 Wi‑Fi Provisioning (SoftAP + Captive Portal)
+
+If the ESP32 does not have valid Wi‑Fi credentials or cannot connect, it starts a **SoftAP** and captive portal automatically.
+
+- **AP SSID:** `NFC-PAY-Setup-XXXX` (last 4 hex of MAC)  
+- **AP Password:** `nfcsetup` (WPA2; iOS requires passworded APs)  
+- **Portal IP:** `http://192.168.4.1` (captive portal redirects most URLs)  
+
+### Portal pages
+- `/` – Web UI to select SSID and enter password (auto-populates with a live scan)
+- `/scan.json` – List of nearby networks `{ networks: [{ ssid, rssi }] }`
+- `/status` – Connection status (“Not connected”, “Trying…”, or current SSID + IP)
+- `/save` – POST (form-url-encoded) `ssid=...&pass=...` → saves to NVS and attempts connection
+
+### Provisioning flow
+1. On boot the device tries stored Wi‑Fi for ~15s.  
+2. If it fails, it starts AP + portal and waits for credentials.  
+3. After saving, it connects in STA mode **without reboot**, shuts down the AP, and continues the normal flow (bootstrap → session → NFC write).
+
+### Factory reset Wi‑Fi
+- **Button:** hold **GPIO 34** **LOW** during boot for ~3 seconds to erase Wi‑Fi and reboot.  
+  (Change pin in `#define BUTTON_PIN 34`.)  
+- **Serial:** send `FACTORY` / `RESETWIFI` / `FORGET` to erase Wi‑Fi and reboot.
+
+> Security note: The AP password is in the firmware (`AP_PASSWORD`). For production, consider a per-device AP password or provisioning via BLE with authenticated pairing. Also pin the backend TLS CA on the ESP32 (replace `setInsecure()`).
 
 ---
 
@@ -400,16 +430,17 @@ components:
 
 ---
 
-## 🧪 ESP32 firmware (LED & buzzer status)
+## 🧪 ESP32 firmware (LED & buzzer status + SoftAP)
 
 - Hardware: ESP32 + PN532 (SPI), NTAG213/215/216 tags.  
 - Defaults:
   - PN532 pins: SCK=18, MOSI=23, MISO=19, SS=5, RST=27
   - LED pin: `GPIO 2`
   - Buzzer pin: `GPIO 15` (**active** buzzer; for passive, use `tone()`)
+  - Factory button: `GPIO 34` → GND to erase Wi‑Fi on boot
 
 **Flow on boot**
-1) Connect Wi-Fi.  
+1) Try stored Wi‑Fi for ~15s → if fails, start **SoftAP portal** (see above).  
 2) `GET /api/v1/bootstrap` with headers (`X-API-Key`, `X-Device-Id`, optional `X-Store-Code`).  
 3) `POST /api/v1/sessions` – creates pending session.  
 4) Write `checkoutUrl` to tag; verify; RF OFF.  
@@ -435,16 +466,8 @@ components:
 
 ## 🧯 Troubleshooting
 
-**Type error: `resolveForDevice` not exported**  
-You have an old route at `app/api/bootstrap/route.ts` importing `resolveForDevice`.  
-- Remove that file and use `app/api/v1/bootstrap/route.ts` (imports `getOrCreateDevice`).  
-- OR add in `src/lib/config.ts`:
-  ```ts
-  export async function resolveForDevice(deviceId?: string){
-    const v = await getOrCreateDevice(deviceId);
-    return { terminalId: v.terminalId, amount: v.amount, currency: v.currency };
-  }
-  ```
+**Can’t see the portal on iPhone**  
+Ensure the AP has a password (WPA2). The default `AP_PASSWORD` is `nfcsetup`.
 
 **Netlify build says TypeScript types missing**  
 The repo includes `@types/react` & `@types/node`. If Netlify still complains, ensure `npm ci` ran.
