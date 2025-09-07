@@ -1,0 +1,108 @@
+{
+  "info": {
+    "name": "NFC Pay Starter",
+    "_postman_id": "11111111-2222-3333-4444-555555555555",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "example.netlify.app"
+    },
+    {
+      "key": "apiKey",
+      "value": "REPLACE_ME"
+    },
+    {
+      "key": "sessionId",
+      "value": "REPLACE_ME"
+    }
+  ],
+  "item": [
+    {
+      "name": "Create Session",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "https://{{baseUrl}}/api/v1/sessions",
+          "protocol": "https",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sessions"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"terminalId\": \"TERM001\", \"amount\": 100, \"currency\": \"USD\"}"
+        }
+      }
+    },
+    {
+      "name": "Get Session",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "https://{{baseUrl}}/api/v1/sessions/{{sessionId}}",
+          "protocol": "https",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sessions",
+            "{{sessionId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sandbox Pay",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "https://{{baseUrl}}/api/sandbox/pay",
+          "protocol": "https",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sandbox",
+            "pay"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"sessionId\": \"{{sessionId}}\"}"
+        }
+      }
+    }
+  ]
+}
