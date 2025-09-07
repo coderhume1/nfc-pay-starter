@@ -6,7 +6,8 @@ This is the shortest path to get the project live on a **free HTTPS subdomain** 
 ## 0) What you need
 - A **Netlify** account (free)  
 - A **Neon** Postgres account (free)  
-- (Optional) Arduino IDE if you’ll flash the ESP32 demo
+- Arduino IDE to flash the ESP32
+- Library installation in Arduino IDE
 
 
 ## 1) Get the code
@@ -70,7 +71,7 @@ curl -sS -X POST -H "Content-Type: application/json" \
 ```
 
 
-## 5) ESP32 (optional demo)
+## 5) ESP32
 - Open the provided sketch `esp32_nfc_provisioner_softap.ino`
 - Set at the top:
   ```cpp
@@ -81,12 +82,3 @@ curl -sS -X POST -H "Content-Type: application/json" \
 - The device auto‑enrolls, creates a session, writes the NFC checkout URL, and shows **pending / paid / error** on LED & buzzer.
 
 
-## 6) That’s it
-- Give your client the **Admin URL** and the **ADMIN_KEY**.  
-- For DB access, share a **read-only** Neon user (don’t share the owner).
-
-
-## Troubleshooting (one‑liners)
-- **Build failed “DATABASE_URL not set”** → add a real Neon pooled URL with `?sslmode=require`
-- **TypeScript packages missing** → ensure Node **18** and let Netlify install dev deps
-- **Old routes** → use `/api/v1/bootstrap` and `/api/v1/sessions` (not legacy paths)
