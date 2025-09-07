@@ -1,7 +1,6 @@
--- Enable UUID function used by Prisma on Postgres/Neon
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Create table
 CREATE TABLE IF NOT EXISTS "Session" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   "terminalId" text NOT NULL,
@@ -12,7 +11,6 @@ CREATE TABLE IF NOT EXISTS "Session" (
   "updatedAt" timestamptz NOT NULL DEFAULT now()
 );
 
--- Keep updatedAt fresh
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
 BEGIN NEW."updatedAt" = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
