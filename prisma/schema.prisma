@@ -17,3 +17,27 @@ model Session {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
+
+model Device {
+  deviceId   String   @id
+  storeCode  String   @default("")
+  terminalId String
+  amount     Int
+  currency   String
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([storeCode])
+}
+
+model TerminalNumber {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+}
+
+model TerminalSequence {
+  storeCode String   @id
+  last      Int      @default(0)
+  updatedAt DateTime @default(now())
+}

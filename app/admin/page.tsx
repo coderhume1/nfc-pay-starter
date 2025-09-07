@@ -9,9 +9,10 @@ export default async function Admin(){
         <button type="submit">Login</button>
       </form></section>);
   }
-  const sessions = await prisma.session.findMany({orderBy:{createdAt:'desc'}});
+  const sessions = await prisma.session.findMany({orderBy:{createdAt:'desc'}, take: 50});
   return (<section>
     <div style={{display:'flex',gap:12,alignItems:'center'}}><h1 style={{marginRight:'auto'}}>Admin</h1>
+      <a href="/admin/devices" style={{color:'#a8c8ff'}}>Devices</a>
       <form method="POST" action="/api/admin/logout"><button type="submit">Logout</button></form></div>
     <h2>Create Test Session</h2>
     <form method="POST" action="/api/admin/create" style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:24}}>

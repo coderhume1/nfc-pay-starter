@@ -7,7 +7,7 @@ if [ -z "$DB" ]; then
   echo "DATABASE_URL missing, skipping Prisma"
 else
   case "$DB" in
-    *USER:PASSWORD*|*ep-your-project-pooler*) 
+    *USER:PASSWORD*|*ep-your-project-pooler*)
       echo "Placeholder DATABASE_URL detected, skipping Prisma"
       ;;
     *)

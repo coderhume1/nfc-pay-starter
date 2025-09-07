@@ -1,26 +1,48 @@
-export type DeviceCfg = { deviceId?: string; terminalId?: string; amount?: number; currency?: string };
+
+import { prisma } from './prisma';
+
+export type DeviceConfig = { terminalId: string; amount: number; currency: string; storeCode?: string };
 
 function num(n: any, d: number) { const x = Number(n); return Number.isFinite(x) ? x : d; }
+const PREFIX = process.env.TERMINAL_PREFIX || '';
+const PAD = Math.max(0, Number(process.env.TERMINAL_PAD || 4) || 4);
 
-export function defaults() {
+export function defaults(): DeviceConfig {
   return {
-    terminalId: process.env.DEFAULT_TERMINAL_ID || "TERM01",
-    amount:     num(process.env.DEFAULT_AMOUNT,   0),
-    currency:   process.env.DEFAULT_CURRENCY || "USD",
+    terminalId: '', // generated per store when needed
+    amount: num(process.env.DEFAULT_AMOUNT, 0),
+    currency: process.env.DEFAULT_CURRENCY || 'USD',
+    storeCode: process.env.DEFAULT_STORE_CODE || 'STORE01',
   };
 }
 
-export function resolveForDevice(deviceId?: string) {
-  const base = defaults();
-  const json = process.env.DEVICE_CONFIG; // e.g. [{"deviceId":"A1B2C3D4E5F6","terminalId":"TERM001","amount":1200,"currency":"USD"}]
-  if (!json || !deviceId) return base;
-  try {
-    const arr = JSON.parse(json) as DeviceCfg[];
-    const hit = arr.find(x => (x.deviceId||"").toLowerCase() === deviceId.toLowerCase());
-    return { 
-      terminalId: hit?.terminalId || base.terminalId,
-      amount:     num(hit?.amount, base.amount),
-      currency:   hit?.currency || base.currency
-    };
-  } catch { return base; }
+function formatTerminal(storeCode: string|undefined|null, n: number): string {
+  const s = (storeCode || '').trim();
+  const numPart = String(n).padStart(PAD, '0');
+  if (s) return `${s}-${PREFIX}${numPart}`;
+  return `${PREFIX}${numPart}`;
+}
+
+export async function assignNextTerminalCode(storeCode?: string): Promise<string> {
+  const sc = (storeCode || process.env.DEFAULT_STORE_CODE || '').trim();
+  // Ensure row exists, then atomically increment
+  await prisma.$executeRaw`INSERT INTO "TerminalSequence" ("storeCode","last","updatedAt") VALUES (${sc}, 0, NOW()) ON CONFLICT ("storeCode") DO NOTHING;`;
+  const rows = await prisma.$queryRaw<{ last: number }[]>`UPDATE "TerminalSequence" SET "last" = "last" + 1, "updatedAt" = NOW() WHERE "storeCode" = ${sc} RETURNING "last";`;
+  const next = rows[0]?.last ?? 1;
+  return formatTerminal(sc, next);
+}
+
+export async function getOrCreateDevice(deviceId?: string, storeCodeFromReq?: string): Promise<DeviceConfig & { deviceId?: string, created?: boolean }> {
+  const d = defaults();
+  if (!deviceId) return { ...d };
+
+  const existing = await prisma.device.findUnique({ where: { deviceId } }).catch(()=>null);
+  if (existing) {
+    return { deviceId, terminalId: existing.terminalId, amount: existing.amount, currency: existing.currency, storeCode: existing.storeCode };
+  }
+
+  const sc = (storeCodeFromReq || d.storeCode)!;
+  const term = await assignNextTerminalCode(sc);
+  await prisma.device.create({ data: { deviceId, storeCode: sc, terminalId: term, amount: d.amount, currency: d.currency, status: 'new' } });
+  return { deviceId, storeCode: sc, terminalId: term, amount: d.amount, currency: d.currency, created: true };
 }
